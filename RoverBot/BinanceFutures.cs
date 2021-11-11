@@ -333,7 +333,7 @@ namespace RoverBot
 							return false;
 						}
 
-						const decimal border = 2.0m;
+						const decimal border = 10.0m;
 
 						var orders = new BinanceFuturesBatchOrder[3];
 
