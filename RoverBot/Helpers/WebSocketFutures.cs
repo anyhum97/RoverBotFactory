@@ -26,7 +26,7 @@ namespace RoverBot
 	{
 		private const string Symbol = "ETHUSDT";
 		
-		public const decimal Percent = 1.0185m;
+		public const decimal Percent = 1.018m;
 
 		private static object LockRecordFile = new object();
 
@@ -453,9 +453,9 @@ namespace RoverBot
 						WriteRecord(deviation, quota);
 					});
 
-					if(deviation >= 2.128m)
+					if(deviation >= 2.14m)
 					{
-						if(quota >= 0.998m)
+						if(quota >= 0.9982m)
 						{
 							Task.Run(() =>
 							{
