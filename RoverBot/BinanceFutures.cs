@@ -24,7 +24,7 @@ namespace RoverBot
 
 		public const string Currency2 = "ETH";
 
-		public const string Version = "0.921";
+		public const string Version = "0.923";
 
 		public static string Symbol = Currency2 + Currency1;
 
@@ -379,11 +379,11 @@ namespace RoverBot
 						{
 							var data = responce.Data.ToArray();
 							
-							foreach(var record in data)
+							for(int i=default; i<data.Length; ++i)
 							{
-								if(record.Success == false)
+								if(data[i].Success == false)
 								{
-									Logger.Write("PlaceLongOrder: " + record.Error.Message);
+									Logger.Write(string.Format("PlaceLongOrder[{0}]: {1}", i, data[i].Error.Message));
 								}
 							}
 						}
@@ -401,6 +401,8 @@ namespace RoverBot
 							Logger.Write("PlaceLongOrder: OrderPrice = " + Format(orderPrice, PricePrecision));
 
 							Logger.Write("PlaceLongOrder: TakeProfit = " + Format(takeProfit1, PricePrecision));
+
+							Logger.Write("PlaceLongOrder: Volume = " + Format(volume, VolumePrecision));
 
 							return true;
 						}
