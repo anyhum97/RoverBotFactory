@@ -22,7 +22,7 @@ namespace RoverBot
 
 		public const string Currency1 = "USDT";
 
-		public const string Currency2 = "ETH";
+		public const string Currency2 = "BTC";
 
 		public const string Version = "0.921";
 
@@ -32,7 +32,7 @@ namespace RoverBot
 
 		public const decimal VolumeFilter = 0.001m;
 
-		public const int DefaultLeverage = 3;
+		public const int DefaultLeverage = 2;
 
 		public const int PricePrecision = 2;
 
