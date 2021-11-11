@@ -32,7 +32,7 @@ namespace RoverBot
 
 		public const decimal VolumeFilter = 0.001m;
 
-		public const int DefaultLeverage = 2;
+		public const int DefaultLeverage = 3;
 
 		public const int PricePrecision = 2;
 
