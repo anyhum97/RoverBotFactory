@@ -453,7 +453,7 @@ namespace RoverBot
 						WriteRecord(deviation, quota);
 					});
 
-					if(deviation >= 1.9m)
+					if(deviation >= 1.892m)
 					{
 						if(quota >= 0.996m)
 						{
