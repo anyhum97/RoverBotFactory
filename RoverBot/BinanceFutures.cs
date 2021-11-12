@@ -24,7 +24,7 @@ namespace RoverBot
 
 		public const string Currency2 = "BTC";
 
-		public const string Version = "0.951";
+		public const string Version = "0.952";
 
 		public static string Symbol = Currency2 + Currency1;
 
@@ -339,8 +339,6 @@ namespace RoverBot
 							return false;
 						}
 
-						const decimal border = 10.0m;
-
 						var orders = new BinanceFuturesBatchOrder[3];
 
 						orders[0] = new BinanceFuturesBatchOrder()
@@ -360,7 +358,7 @@ namespace RoverBot
 							Type = OrderType.TakeProfit,
 							PositionSide = PositionSide.Both,
 							TimeInForce = TimeInForce.GoodTillCancel,
-							StopPrice = takeProfit1 - border,
+							StopPrice = takeProfit1 - Border,
 							Price = takeProfit1,
 							Quantity = volume,
 							ReduceOnly = true,
@@ -373,7 +371,7 @@ namespace RoverBot
 							Type = OrderType.TakeProfit,
 							PositionSide = PositionSide.Both,
 							TimeInForce = TimeInForce.GoodTillCancel,
-							StopPrice = takeProfit2 - border,
+							StopPrice = takeProfit2 - Border,
 							Price = takeProfit2,
 							Quantity = volume,
 							ReduceOnly = true,
