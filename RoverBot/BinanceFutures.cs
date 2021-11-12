@@ -28,11 +28,11 @@ namespace RoverBot
 
 		public static string Symbol = Currency2 + Currency1;
 
-		public const decimal Border = 2.0m;
-
 		public const decimal PriceFilter = 0.01m;
 
 		public const decimal VolumeFilter = 0.001m;
+
+		public const decimal Border = 2.0m;
 
 		public const int DefaultLeverage = 3;
 
