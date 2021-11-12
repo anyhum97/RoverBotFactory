@@ -198,7 +198,11 @@ namespace RoverBot
 
 								Logger.Write("OnEntryPointDetected: [Entry Point]");
 
+								Logger.Write(Program.CheckLine);
+
 								PlaceLongOrderAsync(Symbol, volume, price, takeProfit).Wait();
+
+								Logger.Write(Program.CheckLine);
 
 								CheckPositionAsync(Symbol).Wait();
 
@@ -660,6 +664,12 @@ namespace RoverBot
 							UpdateFeePriceAsync().Wait();
 
 							UpdateBalanceAsync().Wait();
+
+							Logger.Write(Program.CheckLine);
+
+							Logger.Write("CheckPosition: Position Closed, Balance = " + Format(Balance, PricePrecision));
+
+							Logger.Write(Program.CheckLine);
 						}
 						
 						IsTrading = await CancelAllOrdersAsync(Symbol);
