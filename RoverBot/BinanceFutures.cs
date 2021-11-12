@@ -24,13 +24,15 @@ namespace RoverBot
 
 		public const string Currency2 = "ETH";
 
-		public const string Version = "0.923";
+		public const string Version = "0.951";
 
 		public static string Symbol = Currency2 + Currency1;
 
 		public const decimal PriceFilter = 0.01m;
 
 		public const decimal VolumeFilter = 0.001m;
+
+		public const decimal Border = 2.0m;
 
 		public const int DefaultLeverage = 2;
 
@@ -333,8 +335,6 @@ namespace RoverBot
 							return false;
 						}
 
-						const decimal border = 2.0m;
-
 						var orders = new BinanceFuturesBatchOrder[3];
 
 						orders[0] = new BinanceFuturesBatchOrder()
@@ -354,7 +354,7 @@ namespace RoverBot
 							Type = OrderType.TakeProfit,
 							PositionSide = PositionSide.Both,
 							TimeInForce = TimeInForce.GoodTillCancel,
-							StopPrice = takeProfit1 - border,
+							StopPrice = takeProfit1 - Border,
 							Price = takeProfit1,
 							Quantity = volume,
 							ReduceOnly = true,
@@ -367,17 +367,17 @@ namespace RoverBot
 							Type = OrderType.TakeProfit,
 							PositionSide = PositionSide.Both,
 							TimeInForce = TimeInForce.GoodTillCancel,
-							StopPrice = takeProfit2 - border,
+							StopPrice = takeProfit2 - Border,
 							Price = takeProfit2,
 							Quantity = volume,
 							ReduceOnly = true,
 						};
 
-						var responce = await Client.FuturesUsdt.Order.PlaceMultipleOrdersAsync(orders);
+						var response = await Client.FuturesUsdt.Order.PlaceMultipleOrdersAsync(orders);
 						
 						try
 						{
-							var data = responce.Data.ToArray();
+							var data = response.Data.ToArray();
 							
 							for(int i=default; i<data.Length; ++i)
 							{
@@ -392,9 +392,9 @@ namespace RoverBot
 							Logger.Write("PlaceLongOrder: " + exception.Message);
 						}
 
-						if(responce.Success)
+						if(response.Success)
 						{
-							decimal orderPrice = responce.Data.First().Data.AvgPrice;
+							decimal orderPrice = response.Data.First().Data.AvgPrice;
 
 							Logger.Write("PlaceLongOrder: HistoryPrice = " + Format(price, PricePrecision));
 
@@ -408,7 +408,7 @@ namespace RoverBot
 						}
 						else
 						{
-							Logger.Write("PlaceLongOrder: " + responce.Error.Message);
+							Logger.Write("PlaceLongOrder: " + response.Error.Message);
 							
 							return false;
 						}
@@ -443,15 +443,15 @@ namespace RoverBot
 
 				for(int i=default; i<attempts; ++i)
 				{
-					var responce = await Client.FuturesUsdt.Order.CancelAllOrdersAsync(symbol);
+					var response = await Client.FuturesUsdt.Order.CancelAllOrdersAsync(symbol);
 
-					if(responce.Success)
+					if(response.Success)
 					{
 						return true;
 					}
 					else
 					{
-						Logger.Write("CancelAllOrders: " + responce.Error.Message);
+						Logger.Write("CancelAllOrders: " + response.Error.Message);
 					}
 				}
 
@@ -471,11 +471,11 @@ namespace RoverBot
 			{
 				if(IsValid())
 				{
-					var responce = await Client.FuturesUsdt.Account.GetBalanceAsync();
+					var response = await Client.FuturesUsdt.Account.GetBalanceAsync();
 
-					if(responce.Success)
+					if(response.Success)
 					{
-						var list = responce.Data.ToList();
+						var list = response.Data.ToList();
 
 						for(int i=default; i<list.Count; ++i)
 						{
@@ -512,7 +512,7 @@ namespace RoverBot
 					}
 					else
 					{
-						Logger.Write("UpdateBalance: " + responce.Error.Message);
+						Logger.Write("UpdateBalance: " + response.Error.Message);
 
 						return false;
 					}
@@ -536,17 +536,17 @@ namespace RoverBot
 		{
 			try
 			{
-				var responce = await Client.Spot.Market.GetPriceAsync("BNBUSDT");
+				var response = await Client.Spot.Market.GetPriceAsync("BNBUSDT");
 
-				if(responce.Success)
+				if(response.Success)
 				{
-					FeePrice = responce.Data.Price;
+					FeePrice = response.Data.Price;
 
 					return true;
 				}
 				else
 				{
-					Logger.Write("UpdateFeePrice: " + responce.Error.Message);
+					Logger.Write("UpdateFeePrice: " + response.Error.Message);
 
 					return false;
 				}
@@ -565,21 +565,21 @@ namespace RoverBot
 			{
 				if(IsValid())
 				{
-					var responce = await Client.FuturesUsdt.ChangeMarginTypeAsync(Symbol, FuturesMarginType.Isolated);
+					var response = await Client.FuturesUsdt.ChangeMarginTypeAsync(Symbol, FuturesMarginType.Isolated);
 
-					if(responce)
+					if(response)
 					{
 						return true;
 					}
 					else
 					{
-						if(responce.Error.Message.Contains("No need to change margin type"))
+						if(response.Error.Message.Contains("No need to change margin type"))
 						{
 							return true;
 						}
 						else
 						{
-							Logger.Write("SetIsolatedTrading: " + responce.Error.Message);
+							Logger.Write("SetIsolatedTrading: " + response.Error.Message);
 
 							return false;
 						}
@@ -606,11 +606,11 @@ namespace RoverBot
 			{
 				if(IsValid())
 				{
-					var responce = await Client.FuturesUsdt.ChangeInitialLeverageAsync(Symbol, leverage);
+					var response = await Client.FuturesUsdt.ChangeInitialLeverageAsync(Symbol, leverage);
 
-					if(responce.Success)
+					if(response.Success)
 					{
-						if(responce.Data.Leverage == leverage)
+						if(response.Data.Leverage == leverage)
 						{
 							CurrentLeverage = leverage;
 
@@ -623,7 +623,7 @@ namespace RoverBot
 					}
 					else
 					{
-						Logger.Write("SetLeverage: " + responce.Error.Message);
+						Logger.Write("SetLeverage: " + response.Error.Message);
 
 						return false;
 					}
@@ -647,13 +647,13 @@ namespace RoverBot
 		{
 			try
 			{
-				var responce = await Client.FuturesUsdt.GetPositionInformationAsync(symbol);
+				var response = await Client.FuturesUsdt.GetPositionInformationAsync(symbol);
 
-				if(responce.Success)
+				if(response.Success)
 				{
 					IsTrading = true;
 
-					if(responce.Data.ToList().First().IsolatedMargin == default)
+					if(response.Data.ToList().First().IsolatedMargin == default)
 					{
 						if(InPosition)
 						{
@@ -664,10 +664,16 @@ namespace RoverBot
 						
 						IsTrading = await CancelAllOrdersAsync(Symbol);
 
-						InPosition = false;
+						InPosition = default;
 					}
 					else
 					{
+						decimal entry = response.Data.First().EntryPrice;
+
+						decimal volume = response.Data.First().Quantity;
+
+						CheckOrders(entry, volume).Wait();
+
 						InPosition = true;
 					}
 
@@ -677,7 +683,7 @@ namespace RoverBot
 				{
 					IsTrading = default;
 
-					Logger.Write("CheckPosition: " + responce.Error.Message);
+					Logger.Write("CheckPosition: " + response.Error.Message);
 
 					return false;
 				}
@@ -685,6 +691,105 @@ namespace RoverBot
 			catch(Exception exception)
 			{
 				Logger.Write("CheckPosition: " + exception.Message);
+
+				return false;
+			}
+		}
+
+		private static async Task<bool> CheckOrders(decimal entry, decimal volume)
+		{
+			try
+			{
+				var orders = await Client.FuturesUsdt.Order.GetOpenOrdersAsync(Symbol);
+
+				int count = orders.Data.Count();
+
+				if(count == default)
+				{
+					decimal price = WebSocketFutures.History.Last().Close;
+
+					decimal profit = WebSocketFutures.Percent * entry;
+
+					profit = Math.Round(profit, PricePrecision);
+
+					if(price < profit)
+					{
+						if(await PlaceEmergencyOrder1(profit, volume) == false)
+						{
+							PlaceEmergencyOrder2(volume).Wait();
+						}
+					}
+					else
+					{
+						PlaceEmergencyOrder2(volume).Wait();
+					}
+				}
+				else
+				{
+					Logger.Write(string.Format("CheckOrders({0}): [OK]", count));
+				}
+
+				return true;
+			}
+			catch(Exception exception)
+			{
+				Logger.Write("CheckOrders: " + exception.Message);
+
+				return false;
+			}
+		}
+
+		private static async Task<bool> PlaceEmergencyOrder1(decimal profit, decimal volume)
+		{
+			try
+			{
+				profit = Math.Round(profit, PricePrecision);
+
+				var response = await Client.FuturesUsdt.Order.PlaceOrderAsync(Symbol, OrderSide.Sell, OrderType.TakeProfit, volume, PositionSide.Both, TimeInForce.GoodTillCancel, true, profit, stopPrice: profit - Border);
+
+				if(response.Success)
+				{
+					Logger.Write("SetEmergencyOrder1: Success");
+
+					return true;
+				}
+				else
+				{
+					Logger.Write("SetEmergencyOrder1: " + response.Error.Message);
+
+					return false;
+				}
+			}
+			catch(Exception exception)
+			{
+				Logger.Write("SetEmergencyOrder1: " + exception.Message);
+
+				return false;
+			}
+		}
+
+		private static async Task<bool> PlaceEmergencyOrder2(decimal volume)
+		{
+			try
+			{
+				var response = await Client.FuturesUsdt.Order.PlaceOrderAsync(Symbol, OrderSide.Sell, OrderType.Market, volume, PositionSide.Both, reduceOnly: true);
+
+				if(response.Success)
+				{
+					Logger.Write("SetEmergencyOrder2: Success");
+
+					return true;
+				}
+				else
+				{
+					Logger.Write("SetEmergencyOrder2: " + response.Error.Message);
+
+					return false;
+				}
+			}
+			catch(Exception exception)
+			{
+				Logger.Write("SetEmergencyOrder2: " + exception.Message);
 
 				return false;
 			}
