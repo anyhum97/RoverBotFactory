@@ -178,33 +178,6 @@ namespace RoverBot
 
 		#endregion
 
-		#region FirstTime
-
-		private static object LockFirstTime = new object();
-
-		private static bool firstTime = true;
-
-		public static bool FirstTime
-		{
-			get
-			{
-				lock(LockFirstTime)
-				{
-					return firstTime;
-				}
-			}
-
-			set
-			{
-				lock(LockFirstTime)
-				{
-					firstTime = value;
-				}
-			}
-		}
-
-		#endregion
-
 		#region Errors
 
 		private static object LockErrors = new object();
@@ -397,19 +370,14 @@ namespace RoverBot
 					{
 						LastKlineUpdated = time;
 
-						if(FirstTime == default)
+						Task.Run(() =>
 						{
-							Task.Run(() =>
-							{
-								Thread.Sleep(4000);
+							Thread.Sleep(4000);
 
-								StartUpdationTime = DateTime.Now;
+							StartUpdationTime = DateTime.Now;
 
-								LoadHistory(Symbol, HistoryCount).Wait();
-							});
-						}
-
-						FirstTime = default;
+							LoadHistory(Symbol, HistoryCount).Wait();
+						});
 					}
 				}
 			}
