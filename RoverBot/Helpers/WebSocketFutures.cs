@@ -24,7 +24,7 @@ namespace RoverBot
 {
 	public static class WebSocketFutures
 	{
-		private const string Symbol = "ETHUSDT";
+		public const string Symbol = "ETHUSDT";
 		
 		public const decimal Percent = 1.0185m;
 
@@ -282,6 +282,8 @@ namespace RoverBot
 			try
 			{
 				StartInternalTimer();
+
+				UpdateRecords();
 			}
 			catch(Exception exception)
 			{
@@ -582,12 +584,31 @@ namespace RoverBot
 
 				lock(LockRecordsFile)
 				{
-					File.AppendAllText("Records.txt", stringBuilder.ToString());
+					const string path = "Records.txt";
+
+					File.AppendAllText(path, stringBuilder.ToString());
 				}
 			}
 			catch(Exception exception)
 			{
 				Logger.Write("WriteRecords: " + exception.Message);
+			}
+		}
+
+		private static void UpdateRecords()
+		{
+			try
+			{
+				const string path = "Records.txt";
+
+				if(File.Exists(path) == false)
+				{
+					File.AppendAllText(path, "");
+				}
+			}
+			catch(Exception exception)
+			{
+				Logger.Write("UpdateRecords: " + exception.Message);
 			}
 		}
 
