@@ -70,6 +70,70 @@ namespace RoverBot
 
 		#endregion
 		
+		#region Buffer
+
+		private static object LockBuffer = new object();
+
+		private static List<decimal> buffer = default;
+
+		private static DateTime BufferUpdationTime = default;
+
+		public static List<decimal> Buffer
+		{
+			get
+			{
+				lock(LockBuffer)
+				{
+					return buffer;
+				}
+			}
+
+			set
+			{
+				lock(LockBuffer)
+				{
+					buffer = value;
+
+					BufferUpdationTime = DateTime.Now;
+				}
+			}
+		}
+
+		#endregion
+
+		#region CurrentPrice
+
+		private static object LockCurrentPrice = new object();
+
+		private static decimal currentPrice = default;
+
+		public static decimal CurrentPrice
+		{
+			get
+			{
+				lock(LockCurrentPrice)
+				{
+					return currentPrice;
+				}
+			}
+
+			private set
+			{
+				lock(LockCurrentPrice)
+				{
+					if(value != currentPrice)
+					{
+						if(value > 0.0m)
+						{
+							currentPrice = value;
+						}
+					}
+				}
+			}
+		}
+
+		#endregion
+
 		#region LastKlineUpdated
 
 		private static object LockLastKlineUpdated = new object();
@@ -368,8 +432,27 @@ namespace RoverBot
 				{
 					if(time != LastKlineUpdated)
 					{
-						LastKlineUpdated = time;
+						if(Buffer != default)
+						{
+							const double BufferExpirationTime = 60.0;
 
+							if(BufferUpdationTime.AddSeconds(BufferExpirationTime) >= DateTime.Now)
+							{
+								if(CurrentPrice > 0.0m)
+								{
+									Buffer.Add(CurrentPrice);
+
+									CheckEntryPoint2(LastKlineUpdated, Buffer);
+								}
+							}
+							else
+							{
+								Logger.Write("Buffer Expired");
+							}
+						}
+
+						LastKlineUpdated = time;
+						
 						Task.Run(() =>
 						{
 							Thread.Sleep(4000);
@@ -379,6 +462,11 @@ namespace RoverBot
 							LoadHistory(Symbol, HistoryCount).Wait();
 						});
 					}
+				}
+
+				if(record.Data.GetPrice(out decimal price))
+				{
+					CurrentPrice = price;
 				}
 			}
 			catch(Exception exception)
@@ -450,12 +538,44 @@ namespace RoverBot
 				{
 					Task.Run(() =>
 					{
-						WriteRecord(deviation, quota);
+						WriteRecords1(deviation, quota);
+					});
+				}
+				else
+				{
+					Logger.Write("CheckEntryPoint: Invalid Model");
+				}
+			}
+			catch(Exception exception)
+			{
+				Logger.Write("CheckEntryPoint: " + exception.Message);
+			}
+		}
+		
+		private static void CheckEntryPoint2(DateTime time, List<decimal> list)
+		{
+			try
+			{
+				bool state = true;
+
+				decimal deviation = default;
+
+				decimal quota = default;
+
+				state = state && GetDeviationFactor(list, 140, out deviation);
+
+				state = state && GetQuota(list, 28, out quota);
+				
+				if(state)
+				{
+					Task.Run(() =>
+					{
+						WriteRecords2(time, deviation, quota);
 					});
 
-					if(deviation >= 2.128m)
+					if(quota >= 0.998m)
 					{
-						if(quota >= 0.998m)
+						if(deviation >= 2.128m)
 						{
 							Task.Run(() =>
 							{
@@ -466,14 +586,6 @@ namespace RoverBot
 								BinanceFutures.OnEntryPointDetected(price, takeProfit);
 							});
 						}
-						else
-						{
-							Console.WriteLine("Skip");
-						}
-					}
-					else
-					{
-						Console.WriteLine("Skip");
 					}
 				}
 				else
@@ -487,7 +599,7 @@ namespace RoverBot
 			}
 		}
 
-		private static void WriteRecord(decimal deviation, decimal quota)
+		private static void WriteRecords1(decimal deviation, decimal quota)
 		{
 			try
 			{
@@ -497,8 +609,6 @@ namespace RoverBot
 
 				string time = History.Last().CloseTime.ToString("dd.MM.yyyy HH:mm");
 
-				string updationTime = string.Format("[{0}]", Format(timeSpan.TotalSeconds, 4));
-
 				stringBuilder.Append(time);
 				stringBuilder.Append("\t");
 				
@@ -506,19 +616,46 @@ namespace RoverBot
 				stringBuilder.Append("\t");
 				
 				stringBuilder.Append(Format(quota, 4));
-				stringBuilder.Append("\t");
-				
-				stringBuilder.Append(updationTime);
 				stringBuilder.Append("\n");
 
 				lock(LockRecordFile)
 				{
 					File.AppendAllText("Records.txt", stringBuilder.ToString());
+
+					File.AppendAllText("Records1.txt", stringBuilder.ToString());
 				}
 			}
 			catch(Exception exception)
 			{
 				Logger.Write("WriteRecord: " + exception.Message);
+			}
+		}
+
+		private static void WriteRecords2(DateTime time, decimal deviation, decimal quota)
+		{
+			try
+			{
+				StringBuilder stringBuilder = new StringBuilder();
+
+				string str = time.ToString("dd.MM.yyyy HH:mm");
+
+				stringBuilder.Append(str);
+				stringBuilder.Append("\t");
+				
+				stringBuilder.Append(Format(deviation, 4));
+				stringBuilder.Append("\t");
+				
+				stringBuilder.Append(Format(quota, 4));
+				stringBuilder.Append("\n");
+
+				lock(LockRecordFile)
+				{
+					File.AppendAllText("Records2.txt", stringBuilder.ToString());
+				}
+			}
+			catch(Exception exception)
+			{
+				Logger.Write("WriteRecords: " + exception.Message);
 			}
 		}
 
@@ -657,6 +794,141 @@ namespace RoverBot
 			}
 		}
 
+		private static bool GetAverage(List<decimal> history, int window, out decimal average)
+		{
+			average = default;
+
+			try
+			{
+				int index = history.Count-3;
+
+				for(int i=index-window+1; i<index; ++i)
+				{
+					decimal price = history[i];
+
+					average += price;
+				}
+
+				average /= window;
+
+				return true;
+			}
+			catch(Exception exception)
+			{
+				Logger.Write("GetAverage: " + exception.Message);
+
+				return false;
+			}
+		}
+
+		private static bool GetDeviation(List<decimal> history, int window, out decimal average, out decimal deviation)
+		{
+			average = default;
+
+			deviation = default;
+
+			try
+			{
+				int index = history.Count-3;
+
+				if(GetAverage(history, window, out average) == false)
+				{
+					return false;
+				}
+				
+				deviation = default;
+
+				for(int i=index-window+1; i<index; ++i)
+				{
+					decimal price = history[i];
+
+					deviation += (price - average) * (price - average);
+				}
+
+				deviation = (decimal)Math.Sqrt((double)deviation / (window - 1));
+
+				return true;
+			}
+			catch(Exception exception)
+			{
+				Logger.Write("GetDeviation: " + exception.Message);
+
+				return false;
+			}
+		}
+
+		private static bool GetDeviationFactor(List<decimal> history, int window, out decimal factor)
+		{
+			factor = default;
+
+			try
+			{
+				int index = history.Count-3;
+
+				if(GetDeviation(history, window, out decimal average, out decimal deviation) == false)
+				{
+					return false;
+				}
+
+				decimal delta = average - history[index];
+
+				factor = delta / deviation;
+
+				return true;
+			}
+			catch(Exception exception)
+			{
+				Logger.Write("GetDeviationFactor: " + exception.Message);
+
+				return false;
+			}
+		}
+
+		private static bool GetQuota(List<decimal> history, int window, out decimal quota)
+		{
+			quota = default;
+
+			try
+			{
+				decimal more = default;
+
+				decimal less = default;
+
+				int index = history.Count-1;
+
+				decimal price2 = history[index];
+
+				for(int i=index-window+1; i<index; ++i)
+				{
+					decimal price1 = history[i];
+
+					decimal delta = Math.Abs(price1 - price2);
+
+					if(price1 > price2)
+					{
+						more += delta;
+					}
+					else
+					{
+						less += delta;
+					}
+				}
+
+				if(more + less != default)
+				{
+					quota = more / (more + less);
+				}
+
+				return true;
+			}
+			catch(Exception exception)
+			{
+				Logger.Write("GetQuota: " + exception.Message);
+
+				return false;
+			}
+		}
+
 		private static async Task<bool> LoadHistory(string symbol, int count)
 		{
 			List<Candle> history = new List<Candle>();
@@ -678,6 +950,8 @@ namespace RoverBot
 					}
 
 					History = history;
+
+					Buffer = new List<decimal>(history.Select(x => x.Close));
 
 					return true;
 				}
