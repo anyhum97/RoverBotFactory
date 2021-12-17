@@ -33,42 +33,6 @@ namespace RoverBot
 		private static WebSocket KlineStream = default;
 
 		private static Timer InternalTimer = default;
-
-		#region History
-
-		private static object LockHistory = new object();
-
-		public static event Action HistoryUpdated = default;
-
-		private static List<Candle> history = default;
-
-		public static List<Candle> History
-		{
-			get
-			{
-				lock(LockHistory)
-				{
-					return history;
-				}
-			}
-
-			set
-			{
-				lock(LockHistory)
-				{
-					history = value;
-				}
-
-				if(CheckHistory())
-				{
-					NotifyPropertyChanged(HistoryUpdated);
-				}
-			}
-		}
-
-		public const int HistoryCount = 180;
-
-		#endregion
 		
 		#region Buffer
 
@@ -98,6 +62,40 @@ namespace RoverBot
 				}
 			}
 		}
+
+		#endregion
+
+		#region History
+
+		private static object LockHistory = new object();
+
+		private static List<Candle> history = default;
+
+		public static List<Candle> History
+		{
+			get
+			{
+				lock(LockHistory)
+				{
+					return history;
+				}
+			}
+
+			set
+			{
+				lock(LockHistory)
+				{
+					history = value;
+				}
+
+				if(CheckHistory())
+				{
+					Buffer = new List<decimal>(value.Select(x => x.Close));
+				}
+			}
+		}
+
+		public const int HistoryCount = 180;
 
 		#endregion
 
@@ -735,7 +733,7 @@ namespace RoverBot
 			try
 			{
 				BinanceClient client = new BinanceClient();
-		
+				
 				var response = await client.FuturesUsdt.Market.GetKlinesAsync(symbol, KlineInterval.OneMinute, limit: count);
 				
 				if(response.Success)
@@ -750,21 +748,19 @@ namespace RoverBot
 
 					History = history;
 
-					Buffer = new List<decimal>(history.Select(x => x.Close));
-
 					return true;
 				}
 				else
 				{
 					Logger.Write("LoadHistory: " + response.Error.Message);
-		
+					
 					return false;
 				}
 			}
 			catch(Exception exception)
 			{
 				Logger.Write("LoadHistory: " + exception.Message);
-		
+				
 				return false;
 			}
 		}
@@ -823,21 +819,6 @@ namespace RoverBot
 				Logger.Write("CheckHistory: " + exception.Message);
 
 				return false;
-			}
-		}
-
-		private static void NotifyPropertyChanged(Action eventHandler)
-		{
-			try
-			{
-				if(eventHandler != null)
-				{
-					eventHandler.Invoke();
-				}
-			}
-			catch(Exception exception)
-			{
-				Logger.Write("NotifyPropertyChanged: " + exception.Message);
 			}
 		}
 
