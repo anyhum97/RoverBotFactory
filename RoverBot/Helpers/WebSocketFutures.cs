@@ -28,7 +28,7 @@ namespace RoverBot
 		
 		public const decimal Percent = 1.0185m;
 
-		private static object LockRecordFile = new object();
+		private static object LockRecordsFile = new object();
 
 		private static WebSocket KlineStream = default;
 
@@ -283,8 +283,6 @@ namespace RoverBot
 		{
 			try
 			{
-				HistoryUpdated += CheckEntryPoint;
-
 				StartInternalTimer();
 			}
 			catch(Exception exception)
@@ -442,7 +440,7 @@ namespace RoverBot
 								{
 									Buffer.Add(CurrentPrice);
 
-									CheckEntryPoint2(LastKlineUpdated, Buffer);
+									CheckEntryPoint(LastKlineUpdated, Buffer);
 								}
 							}
 							else
@@ -519,40 +517,8 @@ namespace RoverBot
 				Logger.Write("CheckKlineStream: " + exception.Message);
 			}
 		}
-
-		private static void CheckEntryPoint()
-		{
-			try
-			{
-				bool state = true;
-
-				decimal deviation = default;
-
-				decimal quota = default;
-
-				state = state && GetDeviationFactor(History, 140, out deviation);
-
-				state = state && GetQuota(History, 28, out quota);
-				
-				if(state)
-				{
-					Task.Run(() =>
-					{
-						WriteRecords1(deviation, quota);
-					});
-				}
-				else
-				{
-					Logger.Write("CheckEntryPoint: Invalid Model");
-				}
-			}
-			catch(Exception exception)
-			{
-				Logger.Write("CheckEntryPoint: " + exception.Message);
-			}
-		}
 		
-		private static void CheckEntryPoint2(DateTime time, List<decimal> list)
+		private static void CheckEntryPoint(DateTime time, List<decimal> list)
 		{
 			try
 			{
@@ -570,19 +536,19 @@ namespace RoverBot
 				{
 					Task.Run(() =>
 					{
-						WriteRecords2(time, deviation, quota);
+						WriteRecords(time, deviation, quota);
 					});
 
 					if(quota >= 0.998m)
 					{
 						if(deviation >= 2.128m)
 						{
+							decimal price = list.Last();
+
+							decimal takeProfit = Percent * price;
+
 							Task.Run(() =>
 							{
-								decimal price = History.Last().Close;
-
-								decimal takeProfit = Percent * price;
-
 								BinanceFutures.OnEntryPointDetected(price, takeProfit);
 							});
 						}
@@ -599,39 +565,7 @@ namespace RoverBot
 			}
 		}
 
-		private static void WriteRecords1(decimal deviation, decimal quota)
-		{
-			try
-			{
-				StringBuilder stringBuilder = new StringBuilder();
-				
-				TimeSpan timeSpan = StopUpdationTime - StartUpdationTime;
-
-				string time = History.Last().CloseTime.ToString("dd.MM.yyyy HH:mm");
-
-				stringBuilder.Append(time);
-				stringBuilder.Append("\t");
-				
-				stringBuilder.Append(Format(deviation, 4));
-				stringBuilder.Append("\t");
-				
-				stringBuilder.Append(Format(quota, 4));
-				stringBuilder.Append("\n");
-
-				lock(LockRecordFile)
-				{
-					File.AppendAllText("Records.txt", stringBuilder.ToString());
-
-					File.AppendAllText("Records1.txt", stringBuilder.ToString());
-				}
-			}
-			catch(Exception exception)
-			{
-				Logger.Write("WriteRecord: " + exception.Message);
-			}
-		}
-
-		private static void WriteRecords2(DateTime time, decimal deviation, decimal quota)
+		private static void WriteRecords(DateTime time, decimal deviation, decimal quota)
 		{
 			try
 			{
@@ -648,149 +582,14 @@ namespace RoverBot
 				stringBuilder.Append(Format(quota, 4));
 				stringBuilder.Append("\n");
 
-				lock(LockRecordFile)
+				lock(LockRecordsFile)
 				{
-					File.AppendAllText("Records2.txt", stringBuilder.ToString());
+					File.AppendAllText("Records.txt", stringBuilder.ToString());
 				}
 			}
 			catch(Exception exception)
 			{
 				Logger.Write("WriteRecords: " + exception.Message);
-			}
-		}
-
-		private static bool GetAverage(List<Candle> history, int window, out decimal average)
-		{
-			average = default;
-
-			try
-			{
-				int index = history.Count-3;
-
-				for(int i=index-window+1; i<index; ++i)
-				{
-					decimal price = history[i].Close;
-
-					average += price;
-				}
-
-				average /= window;
-
-				return true;
-			}
-			catch(Exception exception)
-			{
-				Logger.Write("GetAverage: " + exception.Message);
-
-				return false;
-			}
-		}
-
-		private static bool GetDeviation(List<Candle> history, int window, out decimal average, out decimal deviation)
-		{
-			average = default;
-
-			deviation = default;
-
-			try
-			{
-				int index = history.Count-3;
-
-				if(GetAverage(history, window, out average) == false)
-				{
-					return false;
-				}
-				
-				deviation = default;
-
-				for(int i=index-window+1; i<index; ++i)
-				{
-					decimal price = history[i].Close;
-
-					deviation += (price - average) * (price - average);
-				}
-
-				deviation = (decimal)Math.Sqrt((double)deviation / (window - 1));
-
-				return true;
-			}
-			catch(Exception exception)
-			{
-				Logger.Write("GetDeviation: " + exception.Message);
-
-				return false;
-			}
-		}
-
-		private static bool GetDeviationFactor(List<Candle> history, int window, out decimal factor)
-		{
-			factor = default;
-
-			try
-			{
-				int index = history.Count-3;
-
-				if(GetDeviation(history, window, out decimal average, out decimal deviation) == false)
-				{
-					return false;
-				}
-
-				decimal delta = average - history[index].Close;
-
-				factor = delta / deviation;
-
-				return true;
-			}
-			catch(Exception exception)
-			{
-				Logger.Write("GetDeviationFactor: " + exception.Message);
-
-				return false;
-			}
-		}
-
-		private static bool GetQuota(List<Candle> history, int window, out decimal quota)
-		{
-			quota = default;
-
-			try
-			{
-				decimal more = default;
-
-				decimal less = default;
-
-				int index = history.Count-1;
-
-				decimal price2 = history[index].Close;
-
-				for(int i=index-window+1; i<index; ++i)
-				{
-					decimal price1 = history[i].Close;
-
-					decimal delta = Math.Abs(price1 - price2);
-
-					if(price1 > price2)
-					{
-						more += delta;
-					}
-					else
-					{
-						less += delta;
-					}
-				}
-
-				if(more + less != default)
-				{
-					quota = more / (more + less);
-				}
-
-				return true;
-			}
-			catch(Exception exception)
-			{
-				Logger.Write("GetQuota: " + exception.Message);
-
-				return false;
 			}
 		}
 

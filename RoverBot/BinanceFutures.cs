@@ -24,7 +24,7 @@ namespace RoverBot
 
 		public const string Currency2 = "ETH";
 
-		public const string Version = "0.977";
+		public const string Version = "0.978";
 
 		public static string Symbol = Currency2 + Currency1;
 
