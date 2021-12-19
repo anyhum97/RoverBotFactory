@@ -773,10 +773,7 @@ namespace RoverBot
 
 						History = history;
 
-						if(i == 1)
-						{
-							return true;
-						}
+						return true;
 					}
 					else
 					{
