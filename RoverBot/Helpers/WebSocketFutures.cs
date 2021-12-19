@@ -753,30 +753,38 @@ namespace RoverBot
 			
 			try
 			{
-				BinanceClient client = new BinanceClient();
-				
-				var response = await client.FuturesUsdt.Market.GetKlinesAsync(symbol, KlineInterval.OneMinute, limit: count);
-				
-				if(response.Success)
+				const int attempts = 2;
+
+				for(int i=default; i<attempts; ++i)
 				{
-					foreach(var record in response.Data)
+					BinanceClient client = new BinanceClient();
+					
+					var response = await client.FuturesUsdt.Market.GetKlinesAsync(symbol, KlineInterval.OneMinute, limit: count);
+					
+					if(response.Success)
 					{
-						if(record.CloseTime.ToLocalTime() < LastKlineUpdated)
+						foreach(var record in response.Data)
 						{
-							history.Add(new Candle(record.CloseTime.ToLocalTime(), record.Open, record.Close, record.Low, record.High));
+							if(record.CloseTime.ToLocalTime() < LastKlineUpdated)
+							{
+								history.Add(new Candle(record.CloseTime.ToLocalTime(), record.Open, record.Close, record.Low, record.High));
+							}
+						}
+
+						History = history;
+
+						if(i == 1)
+						{
+							return true;
 						}
 					}
-
-					History = history;
-
-					return true;
+					else
+					{
+						Logger.Write("LoadHistory: " + response.Error.Message);
+					}
 				}
-				else
-				{
-					Logger.Write("LoadHistory: " + response.Error.Message);
-					
-					return false;
-				}
+
+				return false;
 			}
 			catch(Exception exception)
 			{
